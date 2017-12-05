@@ -269,4 +269,8 @@ void loop(void)
     Serial.print(z); Serial.print('\t');
     Serial.print(w); Serial.println();
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 1d6c6dbfc1347bcdd6b821fbc7e0ddf381759975

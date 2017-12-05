@@ -54,4 +54,8 @@
 // ----------------------------------------------------------------------------------------------
 #define BLUEFRUIT_SPI_SCK              13
 #define BLUEFRUIT_SPI_MISO             12
+<<<<<<< HEAD
 #define BLUEFRUIT_SPI_MOSI             11
+=======
+#define BLUEFRUIT_SPI_MOSI             11
+>>>>>>> 1d6c6dbfc1347bcdd6b821fbc7e0ddf381759975
