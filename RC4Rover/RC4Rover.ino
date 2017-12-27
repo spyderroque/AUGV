@@ -235,7 +235,7 @@ void loop(void) {
     for (int i = 2; i < 5; i++) { //read given Angle
       c[i - 2] = packetbuffer[i];
     }
-    AAngle = atoi(c); //convert UTF-8 Ascii to integer
+    AAngle = atoi(c); //convert UTF-8 Ascii to integer AAngle in [°]
     char d[2];
     for (int i = 7; i < 9; i++) { // read given rotating speed
       d[i - 7] = packetbuffer[i];
@@ -255,9 +255,9 @@ void loop(void) {
     }
 
     CalcRotAngle(AAngle);
-    SetRotVelocity(ARotSpeed); // Funktion anpassen
-    PWMleft = PWMstart[0];  // Funktion anpassen
-    PWMright = PWMstart[1]; // Funktion anpassen
+    SetRotVelocity(ARotSpeed);
+    PWMleft = PWMstart[0];
+    PWMright = PWMstart[1];
 
     ProgState = 'R';
   }
@@ -308,15 +308,15 @@ void loop(void) {
       break;
     case 'R':
       DriveRotation(PWMleft, PWMright, LinTicks);
-      Serial.print("Linker Encoder: ");
-      Serial.print(LeftTicks  );
-      Serial.print(" Rechter Encoder: ");
-      Serial.print(" ");
-      Serial.println(RightTicks);
-      Serial.print("PWMleft ");
-      Serial.print(PWMleft);
-      Serial.print(" PWMright ");
-      Serial.println(PWMright);
+//      Serial.print("Linker Encoder: ");
+//      Serial.print(LeftTicks  );
+//      Serial.print(" Rechter Encoder: ");
+//      Serial.print(" ");
+//      Serial.println(RightTicks);
+//      Serial.print("PWMleft ");
+//      Serial.print(PWMleft);
+//      Serial.print(" PWMright ");
+//      Serial.println(PWMright);
       break;
     case 'C':
       DriveCircle(PWMleft, PWMright, LinTicks);
@@ -589,22 +589,3 @@ void MotorControl (uint8_t *PWM_L, uint8_t *PWM_R, volatile int16_t *Ticks_L, vo
   *PWM_L = PWMstart[0] + ((int) DeltaNL / KrL + 0.5);
   *PWM_R = PWMstart[1] + ((int) DeltaNR / KrR + 0.5);
 }
-
-/*********1. Version des P-Reglers. Funzt nur bei Geradeausfahrt
-
-  void MotorControl (uint8_t *PWMinput, uint8_t *PWM_L, uint8_t *PWM_R, volatile int16_t *Ticks_L, volatile int16_t *Ticks_R) {
-
-  float DeltaN;
-  float Kr;
-  boolean ControllerOutputDirection; //0 points to PWM1 and 1 to PWM 2
-
-  Kr = 10.584 * exp(-0.0135 * (*PWMinput));
-
-  DeltaN = (*Ticks_L - *Ticks_R) / 0.02; //0.02 as delay after Motorsignal is 20 (aka 20millisec) DeltaN = N1-N2
-   PWM_L = *PWMinput;
-   PWM_R = *PWMinput + ((int) DeltaN / Kr + 0.5);
-  }
-
-  Zugehöriger Fuktionsaufruf
-  MotorControl (&PWMstart[0], &PWMstart[1], &PWMleft, &PWMright, &LeftTicks, &RightTicks);
-*/
