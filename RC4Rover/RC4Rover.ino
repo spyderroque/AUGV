@@ -1,7 +1,3 @@
-/*******************************************************************************
-   This Code uses Blynk for controlling the Wild Thumper
- *******************************************************************************/
-
 #include <string.h>
 #include <Arduino.h>
 #include <stdio.h>
@@ -94,6 +90,8 @@ float ASpeed;
 uint16_t AAngle;
 double ARotSpeed;
 float ARadius;
+uint16_t AInterval;
+unsigned long ATimer;
 
 uint8_t PWMleft; //Speed signal on the PWM pin for left side
 uint8_t PWMright; //Speed signal on the PWM pin for right side
@@ -208,8 +206,9 @@ void loop(void) {
   /* Wait for new data to arrive */
   uint8_t len = readPacket(&ble, BLE_READPACKET_TIMEOUT); //Timeout is in BluefruitConfig.h
 
-  // Read command from RC3Rover App
+  // Read command from Rc2Rover LE App
   // Command from App: Linear drive
+  //Structure of Signal: !D1000LS5.1 1000 = 1000cm, 5.1 =5.1 km/h
   if (packetbuffer[1] == 'D') {
     char c[4];
     for (int i = 2; i < 6; i++) { //read given driving distance
@@ -230,12 +229,13 @@ void loop(void) {
     ProgState = 'D';
   }
 
+  //Structure of Signal: !R100LS51S 100 = 100°, 51 =51,  S=°/s
   if (packetbuffer[1] == 'R') {
     char c[3];
     for (int i = 2; i < 5; i++) { //read given Angle
       c[i - 2] = packetbuffer[i];
     }
-    AAngle = atoi(c); //convert UTF-8 Ascii to integer
+    AAngle = atoi(c); //convert UTF-8 Ascii to integer AAngle in [°]
     char d[2];
     for (int i = 7; i < 9; i++) { // read given rotating speed
       d[i - 7] = packetbuffer[i];
@@ -255,13 +255,14 @@ void loop(void) {
     }
 
     CalcRotAngle(AAngle);
-    SetRotVelocity(ARotSpeed); // Funktion anpassen
-    PWMleft = PWMstart[0];  // Funktion anpassen
-    PWMright = PWMstart[1]; // Funktion anpassen
+    SetRotVelocity(ARotSpeed);
+    PWMleft = PWMstart[0];
+    PWMright = PWMstart[1];
 
     ProgState = 'R';
   }
 
+  //Structure of Signal: !C11.40LS5.1045 11.40 = 11.40m, 5.1 =5.1 km/h, 045 = 45°
   if (packetbuffer[1] == 'C') {
     char c[5];
     for (int i = 2; i < 7; i++) { //read given Radius in m
@@ -290,16 +291,107 @@ void loop(void) {
     ProgState = 'O';
   }
 
-  //Auskommentierter alter Code. Nicht gelöscht, falls der Switch Code Probleme macht
-  //  if (ProgState == 'D') {
-  //    DriveLinear(PWMleft, PWMright, &LinTicks[0]);
-  //  }
-  //  if (ProgState == 'R') {
-  //
-  //  }
-  //  if (ProgState == 'C') {
-  //    DriveCircle(PWMleft, PWMright, LinTicks);
-  //  }
+  if (packetbuffer[1] == 'I') {
+    if (packetbuffer[2] == 'D') {
+      char c[4];
+      char t[2];
+      char numInterval[3];
+      int timeconversionhelper;
+      for (int i = 3; i < 7; i++) { //read given driving distance
+        c[i - 3] = packetbuffer[i];
+      }
+      ADistance = atoi(c); //convert UTF-8 Ascii to integer
+
+      t[0] = packetbuffer[9];//hours
+      t[1] = packetbuffer[10];
+      timeconversionhelper = atoi(t);
+      ATimer = timeconversionhelper * 3600 * 1000; //conversion of hours to milliseconds
+
+      t[0] = packetbuffer[12];//minutes
+      t[1] = packetbuffer[13];
+      timeconversionhelper = atoi(t);
+      ATimer = ATimer + timeconversionhelper * 60 * 1000; // add minutes in milliseconds to the hours
+
+      t[0] = packetbuffer[15];//hours
+      t[1] = packetbuffer[16];
+      timeconversionhelper = atoi(t);
+      ATimer = ATimer + timeconversionhelper * 1000; // add seconds in milliseconds to the hours and minutes
+
+      for (int i = 18; i < 21; i++) { // read given cruising speed
+        numInterval[i - 18] = packetbuffer[i];
+      }
+      AInterval = atoi(numInterval); //convert UTF-8 Ascii to float
+
+      ADistance = ADistance / AInterval;
+      ble.print(ADistance);
+
+      ASpeed = 4.0;
+
+      CalcLinDist(ADistance);
+      SetLinVelocity(ASpeed);
+      PWMleft = PWMstart[0];
+      PWMright = PWMstart[1];
+
+      ProgState = '2';
+      //      Serial.print ("ADistance: "); Serial.println (ADistance);
+      //      Serial.print ("ATimer: "); Serial.println (ATimer);
+      //      Serial.print ("AInterval "); Serial.println (AInterval);
+      //      Serial.print ("ASpeed: "); Serial.println (ASpeed);
+      //      Serial.print ("Programmstatus: "); Serial.println (ProgState);
+
+    }
+    else if (packetbuffer[2] == 'R') {
+      char c[3];
+      char t[2];
+      char numInterval[3];
+      int timeconversionhelper;
+      for (int i = 3; i < 6; i++) { //read given driving distance
+        c[i - 3] = packetbuffer[i];
+      }
+      AAngle = atoi(c); //convert UTF-8 Ascii to integer
+
+      t[0] = packetbuffer[8];//hours
+      t[1] = packetbuffer[9];
+      timeconversionhelper = atoi(t);
+      ATimer = timeconversionhelper * 3600 * 1000; //conversion of hours to milliseconds
+
+      t[0] = packetbuffer[11];//minutes
+      t[1] = packetbuffer[12];
+      timeconversionhelper = atoi(t);
+      ATimer = ATimer + timeconversionhelper * 60 * 1000; // add minutes in milliseconds to the hours
+
+      t[0] = packetbuffer[14];//hours
+      t[1] = packetbuffer[15];
+      timeconversionhelper = atoi(t);
+      ATimer = ATimer + timeconversionhelper * 1000; // add seconds in milliseconds to the hours and minutes
+
+      for (int i = 17; i < 20; i++) { // read given cruising speed
+        numInterval[i - 17] = packetbuffer[i];
+      }
+
+      AInterval = atoi(numInterval); //convert UTF-8 Ascii to float
+
+      ble.print(AAngle);
+
+      ASpeed = 4.0;
+
+      CalcRotIntAngle(AAngle, AInterval);
+      SetLinVelocity(ASpeed); //no mistake. The SetLinVelocity function is used intentionally
+      PWMleft = PWMstart[0];
+      PWMright = PWMstart[1];
+
+      ProgState = '3';
+      Serial.print ("AAngle: "); Serial.println (AAngle);
+      Serial.print ("ATimer: "); Serial.println (ATimer);
+      Serial.print ("AInterval "); Serial.println (AInterval);
+      Serial.print ("ASpeed: "); Serial.println (ASpeed);
+      Serial.print ("Programmstatus: "); Serial.println (ProgState);
+
+    }
+    else if (packetbuffer[2] == 'C') {
+
+    }
+  }
 
 
   switch (ProgState) {
@@ -308,18 +400,24 @@ void loop(void) {
       break;
     case 'R':
       DriveRotation(PWMleft, PWMright, LinTicks);
-      Serial.print("Linker Encoder: ");
-      Serial.print(LeftTicks  );
-      Serial.print(" Rechter Encoder: ");
-      Serial.print(" ");
-      Serial.println(RightTicks);
-      Serial.print("PWMleft ");
-      Serial.print(PWMleft);
-      Serial.print(" PWMright ");
-      Serial.println(PWMright);
+      //      Serial.print("Linker Encoder: ");
+      //      Serial.print(LeftTicks  );
+      //      Serial.print(" Rechter Encoder: ");
+      //      Serial.print(" ");
+      //      Serial.println(RightTicks);
+      //      Serial.print("PWMleft ");
+      //      Serial.print(PWMleft);
+      //      Serial.print(" PWMright ");
+      //      Serial.println(PWMright);
       break;
     case 'C':
       DriveCircle(PWMleft, PWMright, LinTicks);
+      break;
+    case '2':
+      IntervalLinear(PWMleft, PWMright, &LinTicks[0]);
+      break;
+    case '3':
+      IntervalRotation(PWMleft, PWMright, &LinTicks[0]);
       break;
     case 'O':
 
@@ -331,6 +429,8 @@ void loop(void) {
   LeftTicks = RightTicks = 0;
 
 }
+
+
 
 /**************************************************************************/
 /*
@@ -347,6 +447,9 @@ void countright() {
   RightTicks++;
   TicksCounterRight++;
 }
+
+
+
 
 /**************************************************************************/
 /*
@@ -371,6 +474,9 @@ unsigned char getM1Fault() {
 unsigned char getM2Fault() {
   return !digitalRead(EN2DIAG2);
 }
+
+
+
 
 
 /******************************************************************************
@@ -406,6 +512,7 @@ void DriveLinear(uint8_t PWMleft, uint8_t PWMright, uint32_t LinTicks[0]) {
   }
 }
 
+
 void DriveRotation(uint8_t PWMleft, uint8_t PWMright, uint32_t *LinTicks) {
   if (TicksCounterLeft < LinTicks[0] + 1) {
 
@@ -436,6 +543,7 @@ void DriveRotation(uint8_t PWMleft, uint8_t PWMright, uint32_t *LinTicks) {
   }
 }
 
+
 void DriveCircle(uint8_t PWMleft, uint8_t PWMright, uint32_t *LinTicks) {
   if (TicksCounterLeft < LinTicks[0] + 1) {
 
@@ -465,6 +573,126 @@ void DriveCircle(uint8_t PWMleft, uint8_t PWMright, uint32_t *LinTicks) {
     ProgState = 'O';
   }
 }
+
+
+
+void IntervalLinear(uint8_t PWMleft, uint8_t PWMright, uint32_t LinTicks[0]) {
+  static int Intervalcounter;
+  static unsigned long Timecounter;
+  unsigned long TimePresent;
+
+
+  if (millis() > Timecounter + ATimer && Intervalcounter < AInterval + 1) {
+    if (Intervalcounter == 0) { // case for the first interval of a sequence Timecounter is 0 at this point and millis() > than ATimer
+      //Serial.print ("Intervallcounter: "); Serial.println (Intervalcounter);
+      Timecounter = millis();
+      Intervalcounter++;
+
+    }
+
+    else if (TicksCounterLeft < LinTicks[0] + 1) {
+      analogWrite(PWM1, PWMleft);
+      digitalWrite(INA1, HIGH);
+      digitalWrite(INB1, LOW);
+
+      analogWrite(PWM2, PWMright);
+      digitalWrite(INA2, HIGH);
+      digitalWrite(INB2, LOW);
+
+      stopIfFault();
+      delay(20);
+    }
+
+    else {
+      digitalWrite(INA1, LOW);
+      digitalWrite(INB1, LOW);
+      analogWrite(PWM1, 127);
+
+      digitalWrite(INA2, LOW);
+      digitalWrite(INB2, LOW);
+      analogWrite(PWM2, 127);
+
+      stopIfFault();
+      delay(20);
+
+      TicksCounterLeft = 0;
+      Intervalcounter++;
+      Timecounter = millis();
+      //Serial.print ("Intervallcounter: "); Serial.println (Intervalcounter);
+    }
+  }
+
+  else if (millis() > Timecounter + ATimer && Intervalcounter == AInterval + 1) {
+    //Serial.print ("Intervallcounter im Endmodus: "); Serial.println (Intervalcounter);
+    Intervalcounter = 0;
+    ProgState = 'O';
+  }
+  else {
+    //ble.println("Error in IntervalLinear");
+    //Serial.print("Timecounter + ATimer -millis(): "); Serial.println(Timecounter + ATimer - millis());
+  }
+}
+
+
+
+void IntervalRotation(uint8_t PWMleft, uint8_t PWMright, uint32_t LinTicks[0]) {
+  static int Intervalcounter;
+  static unsigned long Timecounter;
+  unsigned long TimePresent;
+
+
+  if (millis() > Timecounter + ATimer && Intervalcounter < AInterval+1) {
+    if (Intervalcounter == 0) { // case for the first interval of a sequence Timecounter is 0 at this point and millis() > than ATimer
+      //Serial.print ("Intervallcounter: "); Serial.println (Intervalcounter);
+      Timecounter = millis();
+      Intervalcounter++;
+
+    }
+
+    else if (TicksCounterLeft < LinTicks[0] + 1) {
+      analogWrite(PWM1, PWMleft);
+      digitalWrite(INA1, HIGH);
+      digitalWrite(INB1, LOW);
+
+      analogWrite(PWM2, PWMright);
+      digitalWrite(INA2, LOW);
+      digitalWrite(INB2, HIGH);
+
+      stopIfFault();
+      delay(20);
+    }
+
+    else {
+      digitalWrite(INA1, LOW);
+      digitalWrite(INB1, LOW);
+      analogWrite(PWM1, 127);
+
+      digitalWrite(INA2, LOW);
+      digitalWrite(INB2, LOW);
+      analogWrite(PWM2, 127);
+
+      stopIfFault();
+      delay(20);
+
+      TicksCounterLeft = 0;
+      Intervalcounter++;
+      Timecounter = millis();
+      //Serial.print ("Intervallcounter: "); Serial.println (Intervalcounter);
+    }
+  }
+
+  else if (millis() > Timecounter + ATimer && Intervalcounter == AInterval+1) {
+    //Serial.print ("Intervallcounter im Endmodus: "); Serial.println (Intervalcounter);
+    Intervalcounter = 0;
+    ProgState = 'O';
+  }
+  else {
+    //ble.println("Error in IntervalRotation");
+    //Serial.print("Timecounter + ATimer -millis(): "); Serial.println(Timecounter + ATimer - millis());
+  }
+}
+
+
 
 
 /*******************************************************
@@ -499,11 +727,13 @@ void SetLinVelocity (float velocity) {
   }
 }
 
+
 double Convert_phi_dot2PWM (double arg) {
   double PWM;
   PWM = 1700 / 27 - 2000 / 27 * log((1600 - arg) / 784);
   return PWM;
 }
+
 
 void SetRotVelocity (float rotspeed) {
   double PWM;
@@ -511,11 +741,12 @@ void SetRotVelocity (float rotspeed) {
     /*tan y = 127.5/ 75
       phi_dot = (136*rotspeed*r)/(PI*wheelradius * cos y)
     */
-    phi_dot[i] = (136 * rotspeed * sqrt(75 * 75 + 127.5 * 127.5)) / (M_PI * wheelradius * cos(atan(127.5 / 75))); //127.5mm are half of the wheel base 75mm is half of the wheel distance
+    phi_dot[i] = (136 * rotspeed * sqrt(75 * 75 + 127.5 * 127.5)) / (M_PI * wheelradius * cos(75/sqrt(75 * 75 + 127.5 * 127.5))); //127.5mm are half of the wheel base 75mm is half of the wheel distance
     PWM = Convert_phi_dot2PWM (phi_dot[i]);
     PWMstart[i] = (int) PWM + 0.5;
   }
 }
+
 
 void SetCircVelocity (float velocity) {
   /* returns the PWM Signal needed max. PWM Signal=255 min=0
@@ -534,6 +765,10 @@ void SetCircVelocity (float velocity) {
     PWMstart[i] = (int)PWM + 0.5;
   }
 }
+
+
+
+
 /******************************************************
    These functions calculate the number of encoder ticks in order to return the distance
  ******************************************************/
@@ -545,17 +780,19 @@ void CalcLinDist(uint16_t ADistance) {
   LinTicks[0] = (136 / M_PI) * (ADistance * 10 / wheelradius); // 10 = factor cm to mm
 }
 
+
 void CalcRotAngle(uint16_t AAngle) {
 
   /*tan y = 127.5/ 75
     LinTicks aka phi = (136*AAngle*r)/(PI*wheelradius * cos y)
   */
 
-  float Helper = (136 * AAngle * sqrt(75 * 75 + 127.5 * 127.5)) / (180 * wheelradius * cos(atan(127.5 / 75))); //127.5mm are half of the wheel base 75mm is half of the wheel distance
+  float Helper = (136 * AAngle * sqrt(75 * 75 + 127.5 * 127.5)) / (180 * wheelradius * cos(75/sqrt(75 * 75 + 127.5 * 127.5))); //127.5mm are half of the wheel base 75mm is half of the wheel distance
 
   LinTicks[0] = (int) Helper + 0.5;
   LinTicks[1] = (int) Helper + 0.5;
 }
+
 
 void CalcCircDist(float ARadius, uint16_t AAngle) {
   /* Distance l = PHI*r (wheelradius); # rotations c=PHI/(2*PI); 272 c = phi (rem phi = # encoder ticks)
@@ -566,6 +803,27 @@ void CalcCircDist(float ARadius, uint16_t AAngle) {
   LinTicks[0] = (int) HVL + 0.5;
   LinTicks[1] = (int) HVR + 0.5;
 }
+
+
+
+void CalcRotIntAngle(uint16_t AAngle, uint16_t AInterval) {
+
+  /*
+     Analogouse to CalRotAngle, but for AInterval
+  */
+
+  //float Helper = (136 * AAngle * sqrt(75 * 75 + 127.5 * 127.5)) / (AInterval * 180 * wheelradius * cos(atan(127.5 / 75))); //127.5mm are half of the wheel base 75mm is half of the wheel distance
+  
+  float Helper = (136 * AAngle * sqrt(75 * 75 + 127.5 * 127.5)) / (AInterval * 180 * wheelradius * cos(75/sqrt(75 * 75 + 127.5 * 127.5))); //WIE OBIGE FORMEL ABER ATAN IST ERSETZT WORDEN. ABER WAHRSCHEINLICH FALSCH.
+
+  //float Helper = (136 * AAngle * sqrt(75 * 75 + 127.5 * 127.5)) / (AInterval * 180 * wheelradius * (75/sqrt(75 * 75 + 127.5 * 127.5))); //127.5mm are half of the wheel base 75mm is half of the wheel distance
+
+
+  LinTicks[0] = (int) Helper + 0.5;
+  LinTicks[1] = (int) Helper + 0.5;
+}
+
+
 
 /*******************************************************
  * *****************************************************
@@ -589,22 +847,3 @@ void MotorControl (uint8_t *PWM_L, uint8_t *PWM_R, volatile int16_t *Ticks_L, vo
   *PWM_L = PWMstart[0] + ((int) DeltaNL / KrL + 0.5);
   *PWM_R = PWMstart[1] + ((int) DeltaNR / KrR + 0.5);
 }
-
-/*********1. Version des P-Reglers. Funzt nur bei Geradeausfahrt
-
-  void MotorControl (uint8_t *PWMinput, uint8_t *PWM_L, uint8_t *PWM_R, volatile int16_t *Ticks_L, volatile int16_t *Ticks_R) {
-
-  float DeltaN;
-  float Kr;
-  boolean ControllerOutputDirection; //0 points to PWM1 and 1 to PWM 2
-
-  Kr = 10.584 * exp(-0.0135 * (*PWMinput));
-
-  DeltaN = (*Ticks_L - *Ticks_R) / 0.02; //0.02 as delay after Motorsignal is 20 (aka 20millisec) DeltaN = N1-N2
-   PWM_L = *PWMinput;
-   PWM_R = *PWMinput + ((int) DeltaN / Kr + 0.5);
-  }
-
-  Zugehöriger Fuktionsaufruf
-  MotorControl (&PWMstart[0], &PWMstart[1], &PWMleft, &PWMright, &LeftTicks, &RightTicks);
-*/
