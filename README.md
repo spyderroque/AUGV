@@ -11,3 +11,8 @@ Liste der Programme und Reihenfolge:
 8. PWMvsRPM					Eingeschoben um das Ansprechverhalten und Drehzahlabweichungen der Motoren von PWM-Signal zu dokumentieren
 9. Blynk_Bluefruit_LE		Erprobung der Blynk Schnittstelle
 10. Rc3Rover				Mit MIT Inventor 2 App eine App entwickelt. "Quelldateien" und APK und der Playstore Key liegen im Unterordner
+11. StudioProjects/ Bluefruit LE Connect Android
+							Mit Android Studio neugeschriebene App. Außer den Features der Inventor App ist auch eine Intervallfahrt vorgehalten.
+11. Rc4Rover				Umgestaltung der Rc3Rover um 11. voll ausnutzen zu können.
+12. CameraStage				Neugestaltung der Arduinoalgorithmen nachdem eine IMU mit aufgeommen worden ist im Design. Nicht fertiggestellt bisher
+13. IMUTest					Vereinfachte Fassung von 12. implementiert endlich die sauber Rotation mittels IMU.
